@@ -110,8 +110,9 @@
   .disclaimer { color: var(--muted); font-size: 12px; line-height: 1.55; margin-top: 16px; }
 
   /* ---------- PDF document (rendered off-screen, rasterized by html2pdf) ---------- */
+  .pdf-stage { height: 0; overflow: hidden; }
   #pdfDoc {
-    position: absolute; left: -10000px; top: 0; width: 7.4in;
+    width: 7.4in;
     background: #fff; color: #040024;
     font-family: 'Sofia Sans', -apple-system, sans-serif;
   }
@@ -142,7 +143,8 @@
     @page { margin: 14mm; }
     html, body { background: #fff !important; color: #040024; padding: 0; }
     .app { display: none !important; }
-    #pdfDoc { position: static; left: auto; width: auto; }
+    .pdf-stage { height: auto; overflow: visible; }
+    #pdfDoc { width: auto; }
   }
 </style>
 </head>
@@ -191,7 +193,7 @@
   </div>
 </div>
 
-<div id="pdfDoc"></div>
+<div class="pdf-stage" aria-hidden="true"><div id="pdfDoc"></div></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script>
@@ -489,9 +491,12 @@ function renderPdfDoc(t) {
 function generatePdf() {
   const btn = document.getElementById("btnPdf");
   if (typeof html2pdf === "undefined") { window.print(); return; }
-  const reset = () => { btn.disabled = false; btn.textContent = "Download PDF"; };
+  const stage = document.querySelector(".pdf-stage");
+  const reset = () => { btn.disabled = false; btn.textContent = "Download PDF"; stage.style.height = ""; stage.style.overflow = ""; };
   btn.disabled = true;
   btn.textContent = "Preparing PDF\u2026";
+  stage.style.height = "auto";
+  stage.style.overflow = "visible";
   const dateStr = new Date().toISOString().slice(0, 10);
   html2pdf().set({
     margin: [0.55, 0.55, 0.6, 0.55],
