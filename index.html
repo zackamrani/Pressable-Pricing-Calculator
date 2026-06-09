@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Pressable Credit-Back Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #020124;
+    --card: #0B0B2E;
+    --card-2: #12123B;
+    --text: #F5F5F7;
+    --muted: #9B9BB5;
+    --accent: #3858E9;
+    --cyan: #00D4FF;
+    --green: #2FBF71;
+    --red: #FF6B6B;
+    --border: rgba(255,255,255,0.09);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--bg); color: var(--text); font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  body { padding: 32px 20px 80px; }
+  .money, .num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+
+  .wrap { max-width: 1120px; margin: 0 auto; }
+  header { margin-bottom: 28px; }
+  .brand { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .wordmark { font-weight: 800; font-size: 26px; letter-spacing: -0.5px; }
+  .wordmark .dot { color: var(--cyan); }
+  .badge-internal { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px; }
+  h1 { font-size: 28px; font-weight: 700; margin-top: 14px; letter-spacing: -0.4px; }
+  .promo-line { color: var(--muted); margin-top: 8px; font-size: 14px; max-width: 640px; line-height: 1.5; }
+  .promo-line strong { color: var(--text); font-weight: 600; }
+
+  .grid { display: grid; grid-template-columns: 1fr 380px; gap: 24px; align-items: start; }
+  @media (max-width: 920px) { .grid { grid-template-columns: 1fr; } .summary { position: static !important; } }
+
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
+  .line-card { margin-bottom: 16px; }
+  .line-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .line-title { font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .btn-remove { background: none; border: 1px solid var(--border); color: var(--muted); border-radius: 8px; width: 28px; height: 28px; cursor: pointer; font-size: 14px; line-height: 1; }
+  .btn-remove:hover:not(:disabled) { color: var(--red); border-color: var(--red); }
+  .btn-remove:disabled { opacity: 0.3; cursor: default; }
+
+  .controls { display: grid; grid-template-columns: 1fr; gap: 14px; }
+  label.field-label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 6px; letter-spacing: 0.04em; text-transform: uppercase; }
+  select, input[type="number"] {
+    width: 100%; background: var(--card-2); color: var(--text); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 12px; font-size: 15px; font-family: inherit;
+  }
+  select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: var(--accent); }
+
+  .row-2 { display: grid; grid-template-columns: 1fr 110px; gap: 14px; }
+
+  .pills { display: flex; gap: 8px; }
+  .pill {
+    flex: 1; background: var(--card-2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 10px; padding: 9px 6px 7px; cursor: pointer; text-align: center; font-family: inherit;
+  }
+  .pill .p-main { display: block; font-size: 14px; font-weight: 600; }
+  .pill .p-sub { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .pill[aria-pressed="true"] { border-color: var(--accent); background: rgba(56,88,233,0.18); }
+  .pill[aria-pressed="true"] .p-sub { color: var(--cyan); }
+  .badge-free { display: inline-block; font-size: 10px; font-weight: 700; color: #020124; background: var(--cyan); border-radius: 999px; padding: 1px 7px; margin-left: 6px; vertical-align: 1px; }
+
+  .specs { color: var(--muted); font-size: 13px; margin-top: 2px; }
+
+  .line-results { border-top: 1px solid var(--border); margin-top: 16px; padding-top: 14px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  @media (max-width: 640px) { .line-results { grid-template-columns: repeat(2, 1fr); } .row-2 { grid-template-columns: 1fr; } }
+  .lr-item .lr-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .lr-item .lr-value { font-size: 17px; font-weight: 600; margin-top: 3px; }
+  .lr-item .lr-value.credit { color: var(--cyan); }
+  .line-math { grid-column: 1 / -1; font-size: 12.5px; color: var(--muted); background: var(--card-2); border-radius: 8px; padding: 8px 10px; }
+
+  .btn-add {
+    width: 100%; background: none; border: 1px dashed rgba(255,255,255,0.25); color: var(--text);
+    border-radius: 12px; padding: 13px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; margin-bottom: 16px;
+  }
+  .btn-add:hover { border-color: var(--cyan); color: var(--cyan); }
+
+  .host-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .host-card p.hint { color: var(--muted); font-size: 13px; margin-bottom: 12px; line-height: 1.5; }
+  .input-prefix { position: relative; }
+  .input-prefix span.cur { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+  .input-prefix input { padding-left: 26px; }
+
+  .summary { position: sticky; top: 24px; }
+  .summary h2 { font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 18px; }
+  .hero-label { font-size: 13px; color: var(--muted); }
+  .hero { font-size: 64px; font-weight: 700; color: var(--cyan); letter-spacing: -1.5px; line-height: 1.05; margin: 4px 0 18px; }
+  @media (max-width: 640px) { .hero { font-size: 46px; } }
+  .sum-rows { border-top: 1px solid var(--border); }
+  .sum-row { display: flex; justify-content: space-between; align-items: baseline; padding: 11px 0; border-bottom: 1px solid var(--border); }
+  .sum-row .k { color: var(--muted); font-size: 14px; }
+  .sum-row .v { font-size: 16px; font-weight: 600; }
+  .sum-row.compare .v.save { color: var(--green); }
+  .sum-row.compare .v.cost { color: var(--red); }
+  .covered-note { font-size: 13px; color: var(--green); margin-top: 10px; line-height: 1.5; }
+  .btn-pdf {
+    width: 100%; margin-top: 18px; background: var(--accent); color: #fff; border: none; border-radius: 10px;
+    padding: 13px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit;
+  }
+  .btn-pdf:hover { filter: brightness(1.1); }
+  .pdf-hint { text-align: center; color: var(--muted); font-size: 12px; margin-top: 8px; }
+  .disclaimer { color: var(--muted); font-size: 12px; line-height: 1.55; margin-top: 16px; }
+
+  /* ---------- Print / PDF ---------- */
+  #printDoc { display: none; }
+  @media print {
+    @page { margin: 14mm; }
+    body { background: #fff; color: #111; padding: 0; }
+    .app { display: none !important; }
+    #printDoc { display: block; font-family: 'Inter', -apple-system, sans-serif; color: #15152e; }
+    .pd-head { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 3px solid #3858E9; padding-bottom: 10px; }
+    .pd-brand { font-size: 22px; font-weight: 800; }
+    .pd-date { font-size: 12px; color: #555; }
+    .pd-title { font-size: 16px; font-weight: 700; margin: 16px 0 4px; }
+    .pd-promo { font-size: 12px; color: #444; margin-bottom: 14px; }
+    table.pd-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .pd-table th { text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; color: #666; border-bottom: 1.5px solid #ccc; padding: 6px 8px 6px 0; }
+    .pd-table th.r, .pd-table td.r { text-align: right; padding-right: 0; padding-left: 8px; }
+    .pd-table td { border-bottom: 1px solid #e4e4ee; padding: 8px 8px 8px 0; vertical-align: top; }
+    .pd-table td .sub { color: #777; font-size: 10.5px; margin-top: 2px; }
+    .pd-table .credit-col { color: #3858E9; font-weight: 700; }
+    .pd-totals { margin-top: 14px; margin-left: auto; width: 320px; font-size: 13px; }
+    .pd-totals .t-row { display: flex; justify-content: space-between; padding: 5px 0; }
+    .pd-totals .t-row.big { font-size: 16px; font-weight: 800; color: #3858E9; border-top: 2px solid #3858E9; margin-top: 4px; padding-top: 8px; }
+    .pd-compare { margin-top: 18px; border: 1.5px solid #e0e0ec; border-radius: 8px; padding: 12px 14px; font-size: 12.5px; }
+    .pd-compare h4 { font-size: 13px; margin-bottom: 6px; }
+    .pd-compare .pc-row { display: flex; justify-content: space-between; padding: 3px 0; }
+    .pd-compare .pc-strong { font-weight: 700; }
+    .pd-disclaimer { margin-top: 22px; font-size: 10px; color: #777; line-height: 1.5; border-top: 1px solid #ddd; padding-top: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app wrap">
+  <header>
+    <div class="brand">
+      <div class="wordmark">pressable<span class="dot">.</span></div>
+      <span class="badge-internal">A4A Internal Tool</span>
+    </div>
+    <h1>Credit-Back Calculator</h1>
+    <p class="promo-line">Current promo: agencies get <strong>credit back at the end of their contract</strong>. <strong>1 year = 15%</strong>, <strong>2 years = 25%</strong>, <strong>3 years = 35%</strong> of the total contract value. Add each plan the agency needs, then walk through the numbers together.</p>
+  </header>
+
+  <div class="grid">
+    <div>
+      <div id="lines"></div>
+      <button class="btn-add" id="addLine" type="button">+ Add another plan</button>
+
+      <div class="card host-card">
+        <h3>Compare with their current host (optional)</h3>
+        <p class="hint">Enter what the agency pays their current host per month for the same sites. The summary will show whether moving saves money over the term, and whether the credit alone covers their current bill.</p>
+        <label class="field-label" for="hostCost">Current hosting cost / month</label>
+        <div class="input-prefix">
+          <span class="cur">$</span>
+          <input type="number" id="hostCost" min="0" step="any" placeholder="0.00">
+        </div>
+      </div>
+    </div>
+
+    <div class="card summary">
+      <h2>Summary</h2>
+      <div class="hero-label">Total credit back</div>
+      <div class="hero money" id="sumCredit">$0</div>
+      <div class="sum-rows">
+        <div class="sum-row"><span class="k">Term total (before credit)</span><span class="v money" id="sumTotal">$0</span></div>
+        <div class="sum-row"><span class="k">Net cost after credit</span><span class="v money" id="sumNet">$0</span></div>
+        <div class="sum-row"><span class="k">Effective monthly cost</span><span class="v money" id="sumEffMo">$0</span></div>
+      </div>
+      <div id="sumCompare"></div>
+      <button class="btn-pdf" id="btnPdf" type="button">Download PDF</button>
+      <p class="pdf-hint">Choose "Save as PDF" in the print dialog.</p>
+      <p class="disclaimer">Internal A4A tool. Estimates only, not a quote or contract. Credit is applied at the end of the contract term. Excludes add-ons, taxes, and other Pressable promotions. Annual pricing already includes the standard two-months-free discount.</p>
+    </div>
+  </div>
+</div>
+
+<div id="printDoc"></div>
+
+<script>
+// ===== CALC CORE START =====
+const SIGNATURE = [
+  { name: "Signature 1",  installs: 1,   visits: 30000,    storage: 20,   fullAnnual: 250,   fullMonthly: 25 },
+  { name: "Signature 2",  installs: 3,   visits: 50000,    storage: 30,   fullAnnual: 450,   fullMonthly: 45 },
+  { name: "Signature 3",  installs: 5,   visits: 75000,    storage: 35,   fullAnnual: 600,   fullMonthly: 60 },
+  { name: "Signature 4",  installs: 10,  visits: 150000,   storage: 50,   fullAnnual: 900,   fullMonthly: 90 },
+  { name: "Signature 5",  installs: 20,  visits: 400000,   storage: 80,   fullAnnual: 1550,  fullMonthly: 155 },
+  { name: "Signature 6",  installs: 50,  visits: 1000000,  storage: 200,  fullAnnual: 3500,  fullMonthly: 350 },
+  { name: "Signature 7",  installs: 80,  visits: 1600000,  storage: 275,  fullAnnual: 5450,  fullMonthly: 545 },
+  { name: "Signature 8",  installs: 100, visits: 2000000,  storage: 325,  fullAnnual: 6750,  fullMonthly: 675 },
+  { name: "Signature 9",  installs: 120, visits: 2400000,  storage: 375,  fullAnnual: 8050,  fullMonthly: 805 },
+  { name: "Signature 10", installs: 150, visits: 3000000,  storage: 450,  fullAnnual: 10000, fullMonthly: 1000 },
+  { name: "Signature 11", installs: 200, visits: 4000000,  storage: 500,  fullAnnual: 13250, fullMonthly: 1325 },
+  { name: "Signature 12", installs: 250, visits: 5000000,  storage: 550,  fullAnnual: 16500, fullMonthly: 1650 },
+  { name: "Signature 13", installs: 300, visits: 6000000,  storage: 600,  fullAnnual: 19750, fullMonthly: 1975 },
+  { name: "Signature 14", installs: 350, visits: 7000000,  storage: 700,  fullAnnual: 23000, fullMonthly: 2300 },
+  { name: "Signature 15", installs: 400, visits: 8000000,  storage: 800,  fullAnnual: 26250, fullMonthly: 2625 },
+  { name: "Signature 16", installs: 450, visits: 9000000,  storage: 900,  fullAnnual: 29500, fullMonthly: 2950 },
+  { name: "Signature 17", installs: 500, visits: 10000000, storage: 1000, fullAnnual: 32750, fullMonthly: 3275 }
+];
+
+const PREMIUM = [
+  { name: "Premium 1",  installs: 1, visits: 150000,   storage: 30,  fullAnnual: 3500,  fullMonthly: 350 },
+  { name: "Premium 2",  installs: 1, visits: 250000,   storage: 40,  fullAnnual: 5000,  fullMonthly: 500 },
+  { name: "Premium 3",  installs: 1, visits: 350000,   storage: 50,  fullAnnual: 7000,  fullMonthly: 700 },
+  { name: "Premium 4",  installs: 1, visits: 500000,   storage: 60,  fullAnnual: 10000, fullMonthly: 1000 },
+  { name: "Premium 5",  installs: 1, visits: 750000,   storage: 70,  fullAnnual: 12500, fullMonthly: 1250 },
+  { name: "Premium 6",  installs: 1, visits: 1000000,  storage: 80,  fullAnnual: 15000, fullMonthly: 1500 },
+  { name: "Premium 7",  installs: 1, visits: 2000000,  storage: 90,  fullAnnual: 20000, fullMonthly: 2000 },
+  { name: "Premium 8",  installs: 1, visits: 3000000,  storage: 100, fullAnnual: 25000, fullMonthly: 2500 },
+  { name: "Premium 9",  installs: 1, visits: 5000000,  storage: 125, fullAnnual: 30000, fullMonthly: 3000 },
+  { name: "Premium 10", installs: 1, visits: 7000000,  storage: 150, fullAnnual: 35000, fullMonthly: 3500 },
+  { name: "Premium 11", installs: 1, visits: 10000000, storage: 150, fullAnnual: 40000, fullMonthly: 4000 }
+];
+
+const RATES = { 1: 0.15, 2: 0.25, 3: 0.35 };
+
+function getPlan(key) {
+  const idx = parseInt(key.slice(1), 10);
+  return key[0] === "s" ? SIGNATURE[idx] : PREMIUM[idx];
+}
+
+// Per-line math, exactly as agreed:
+//   Annual:  term_total = fullAnnual x years x qty
+//   Monthly: term_total = fullMonthly x 12 x years x qty
+//   credit  = term_total x rate(years)
+//   net     = term_total - credit
+function computeLine(line) {
+  const plan = getPlan(line.planKey);
+  const rate = RATES[line.years];
+  const termTotal = line.billing === "annual"
+    ? plan.fullAnnual * line.years * line.qty
+    : plan.fullMonthly * 12 * line.years * line.qty;
+  const credit = termTotal * rate;
+  const net = termTotal - credit;
+  const months = line.years * 12;
+  return { plan, rate, termTotal, credit, net, months, effMo: net / months };
+}
+
+function computeTotals(lines) {
+  let termTotal = 0, credit = 0, net = 0, maxMonths = 0;
+  for (const line of lines) {
+    const r = computeLine(line);
+    termTotal += r.termTotal;
+    credit += r.credit;
+    net += r.net;
+    if (r.months > maxMonths) maxMonths = r.months;
+  }
+  return { termTotal, credit, net, maxMonths, effMo: maxMonths ? net / maxMonths : 0 };
+}
+// ===== CALC CORE END =====
+
+// ---------- Formatting ----------
+const fmtWhole = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0 });
+const fmtCents = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function money(v) { return Math.abs(v - Math.round(v)) < 0.005 ? fmtWhole.format(v) : fmtCents.format(v); }
+function visitsShort(v) { return v >= 1000000 ? (v / 1000000) + "M" : (v / 1000) + "k"; }
+function specsText(p) {
+  return p.installs + (p.installs === 1 ? " site" : " sites") + " · " + visitsShort(p.visits) + " visits/mo · " + p.storage + " GB";
+}
+function pct(rate) { return Math.round(rate * 100) + "%"; }
+
+// ---------- State ----------
+let lines = [{ planKey: "s0", billing: "annual", years: 1, qty: 1 }];
+let nextId = 0;
+
+// ---------- UI ----------
+const linesEl = document.getElementById("lines");
+
+function planOptions(selectedKey) {
+  let html = '<optgroup label="Signature">';
+  SIGNATURE.forEach((p, i) => {
+    const k = "s" + i;
+    html += '<option value="' + k + '"' + (k === selectedKey ? " selected" : "") + ">" + p.name + "</option>";
+  });
+  html += '</optgroup><optgroup label="Premium">';
+  PREMIUM.forEach((p, i) => {
+    const k = "p" + i;
+    html += '<option value="' + k + '"' + (k === selectedKey ? " selected" : "") + ">" + p.name + "</option>";
+  });
+  html += "</optgroup>";
+  return html;
+}
+
+function buildLineCard(line, idx) {
+  const card = document.createElement("div");
+  card.className = "card line-card";
+  card.dataset.idx = idx;
+  card.innerHTML =
+    '<div class="line-head">' +
+      '<span class="line-title">Plan ' + (idx + 1) + "</span>" +
+      '<button class="btn-remove" type="button" title="Remove plan"' + (lines.length === 1 ? " disabled" : "") + ">×</button>" +
+    "</div>" +
+    '<div class="controls">' +
+      "<div>" +
+        '<label class="field-label">Plan</label>' +
+        "<select class=\"sel-plan\">" + planOptions(line.planKey) + "</select>" +
+        '<div class="specs"></div>' +
+      "</div>" +
+      '<div class="row-2">' +
+        "<div>" +
+          '<label class="field-label">Billing</label>' +
+          '<div class="pills pills-billing">' +
+            '<button type="button" class="pill" data-billing="annual"><span class="p-main">Annual<span class="badge-free">2 Months Free</span></span><span class="p-sub sub-annual"></span></button>' +
+            '<button type="button" class="pill" data-billing="monthly"><span class="p-main">Monthly</span><span class="p-sub sub-monthly"></span></button>' +
+          "</div>" +
+        "</div>" +
+        "<div>" +
+          '<label class="field-label">Quantity</label>' +
+          '<input type="number" class="inp-qty" min="1" step="1" value="' + line.qty + '">' +
+        "</div>" +
+      "</div>" +
+      "<div>" +
+        '<label class="field-label">Contract term</label>' +
+        '<div class="pills pills-term">' +
+          '<button type="button" class="pill" data-years="1"><span class="p-main">1 year</span><span class="p-sub">15% back</span></button>' +
+          '<button type="button" class="pill" data-years="2"><span class="p-main">2 years</span><span class="p-sub">25% back</span></button>' +
+          '<button type="button" class="pill" data-years="3"><span class="p-main">3 years</span><span class="p-sub">35% back</span></button>' +
+        "</div>" +
+      "</div>" +
+    "</div>" +
+    '<div class="line-results">' +
+      '<div class="lr-item"><div class="lr-label">Term total</div><div class="lr-value money lr-total"></div></div>' +
+      '<div class="lr-item"><div class="lr-label">Credit back</div><div class="lr-value money credit lr-credit"></div></div>' +
+      '<div class="lr-item"><div class="lr-label">Net cost</div><div class="lr-value money lr-net"></div></div>' +
+      '<div class="lr-item"><div class="lr-label">Effective / mo</div><div class="lr-value money lr-effmo"></div></div>' +
+      '<div class="line-math money"></div>' +
+    "</div>";
+
+  card.querySelector(".btn-remove").addEventListener("click", () => { lines.splice(idx, 1); rebuild(); });
+  card.querySelector(".sel-plan").addEventListener("change", (e) => { lines[idx].planKey = e.target.value; update(); });
+  card.querySelector(".inp-qty").addEventListener("input", (e) => {
+    const q = Math.max(1, Math.floor(Number(e.target.value) || 1));
+    lines[idx].qty = q;
+    update();
+  });
+  card.querySelectorAll(".pills-billing .pill").forEach((b) => {
+    b.addEventListener("click", () => { lines[idx].billing = b.dataset.billing; update(); });
+  });
+  card.querySelectorAll(".pills-term .pill").forEach((b) => {
+    b.addEventListener("click", () => { lines[idx].years = parseInt(b.dataset.years, 10); update(); });
+  });
+  return card;
+}
+
+function rebuild() {
+  linesEl.innerHTML = "";
+  lines.forEach((line, idx) => linesEl.appendChild(buildLineCard(line, idx)));
+  update();
+}
+
+function mathString(line, r) {
+  const qtyPart = line.qty > 1 ? " × " + line.qty : "";
+  if (line.billing === "annual") {
+    return money(r.plan.fullAnnual) + "/yr × " + line.years + qtyPart + " × " + pct(r.rate) + " = " + money(r.credit) + " back";
+  }
+  return money(r.plan.fullMonthly) + "/mo × 12 × " + line.years + qtyPart + " × " + pct(r.rate) + " = " + money(r.credit) + " back";
+}
+
+function update() {
+  document.querySelectorAll(".line-card").forEach((card) => {
+    const idx = parseInt(card.dataset.idx, 10);
+    const line = lines[idx];
+    const r = computeLine(line);
+    card.querySelector(".specs").textContent = specsText(r.plan);
+    card.querySelector(".sub-annual").textContent = money(r.plan.fullAnnual) + "/yr";
+    card.querySelector(".sub-monthly").textContent = money(r.plan.fullMonthly) + "/mo";
+    card.querySelectorAll(".pills-billing .pill").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.billing === line.billing)));
+    card.querySelectorAll(".pills-term .pill").forEach((b) => b.setAttribute("aria-pressed", String(parseInt(b.dataset.years, 10) === line.years)));
+    card.querySelector(".lr-total").textContent = money(r.termTotal);
+    card.querySelector(".lr-credit").textContent = money(r.credit);
+    card.querySelector(".lr-net").textContent = money(r.net);
+    card.querySelector(".lr-effmo").textContent = fmtCents.format(r.effMo);
+    card.querySelector(".line-math").textContent = mathString(line, r);
+  });
+
+  const t = computeTotals(lines);
+  document.getElementById("sumCredit").textContent = money(t.credit);
+  document.getElementById("sumTotal").textContent = money(t.termTotal);
+  document.getElementById("sumNet").textContent = money(t.net);
+  document.getElementById("sumEffMo").textContent = fmtCents.format(t.effMo);
+
+  renderCompare(t);
+  renderPrintDoc(t);
+}
+
+function getHostCost() {
+  const v = Number(document.getElementById("hostCost").value);
+  return isFinite(v) && v > 0 ? v : null;
+}
+
+function compareData(t) {
+  const hostMo = getHostCost();
+  if (!hostMo) return null;
+  const years = t.maxMonths / 12;
+  const hostTotal = hostMo * t.maxMonths;
+  return { hostMo, years, hostTotal, diff: hostTotal - t.net, creditCovers: t.credit >= hostTotal };
+}
+
+function renderCompare(t) {
+  const el = document.getElementById("sumCompare");
+  const c = compareData(t);
+  if (!c) { el.innerHTML = ""; return; }
+  const yrLabel = c.years === 1 ? "1 year" : c.years + " years";
+  let html =
+    '<div class="sum-row compare"><span class="k">Current host over ' + yrLabel + "</span><span class=\"v money\">" + money(c.hostTotal) + "</span></div>";
+  if (c.diff >= 0) {
+    html += '<div class="sum-row compare"><span class="k">Savings vs. staying</span><span class="v money save">' + money(c.diff) + "</span></div>";
+  } else {
+    html += '<div class="sum-row compare"><span class="k">Extra cost vs. staying</span><span class="v money cost">' + money(-c.diff) + "</span></div>";
+  }
+  if (c.creditCovers) {
+    html += '<p class="covered-note">The credit back (' + money(t.credit) + ") is more than their entire current hosting bill for the term (" + money(c.hostTotal) + ").</p>";
+  }
+  el.innerHTML = html;
+}
+
+// ---------- Print / PDF ----------
+function esc(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;"); }
+
+function renderPrintDoc(t) {
+  const dateStr = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  let rows = "";
+  lines.forEach((line) => {
+    const r = computeLine(line);
+    rows +=
+      "<tr>" +
+        "<td><strong>" + esc(r.plan.name) + "</strong><div class=\"sub\">" + esc(specsText(r.plan)) + "</div></td>" +
+        "<td>" + (line.billing === "annual" ? "Annual" : "Monthly") + "</td>" +
+        '<td class="num">' + line.years + " yr · " + pct(r.rate) + "</td>" +
+        '<td class="num">' + line.qty + "</td>" +
+        '<td class="r money">' + money(r.termTotal) + "</td>" +
+        '<td class="r money credit-col">' + money(r.credit) + "</td>" +
+        '<td class="r money">' + money(r.net) + "</td>" +
+        '<td class="r money">' + fmtCents.format(r.effMo) + "</td>" +
+      "</tr>";
+  });
+
+  const c = compareData(t);
+  let compareHtml = "";
+  if (c) {
+    const yrLabel = c.years === 1 ? "1 year" : c.years + " years";
+    compareHtml =
+      '<div class="pd-compare"><h4>Compared with current host</h4>' +
+        '<div class="pc-row"><span>Current host (' + money(c.hostMo) + "/mo × " + c.years * 12 + " mo)</span><span class=\"money\">" + money(c.hostTotal) + "</span></div>" +
+        '<div class="pc-row"><span>Pressable net cost after credit</span><span class="money">' + money(t.net) + "</span></div>" +
+        '<div class="pc-row pc-strong"><span>' + (c.diff >= 0 ? "Savings over " + yrLabel : "Extra cost over " + yrLabel) + "</span><span class=\"money\">" + money(Math.abs(c.diff)) + "</span></div>" +
+        (c.creditCovers ? '<div class="pc-row"><span>Note: the credit back alone exceeds the full current-host bill for the term.</span></div>' : "") +
+      "</div>";
+  }
+
+  document.getElementById("printDoc").innerHTML =
+    '<div class="pd-head"><div class="pd-brand">pressable</div><div class="pd-date">Prepared ' + dateStr + "</div></div>" +
+    '<div class="pd-title">Credit-Back Estimate</div>' +
+    '<div class="pd-promo">Promo: credit back at the end of the contract term. 1 year = 15%, 2 years = 25%, 3 years = 35% of total contract value.</div>' +
+    '<table class="pd-table"><thead><tr>' +
+      "<th>Plan</th><th>Billing</th><th>Term</th><th>Qty</th>" +
+      '<th class="r">Term Total</th><th class="r">Credit Back</th><th class="r">Net Cost</th><th class="r">Effective/mo</th>' +
+    "</tr></thead><tbody>" + rows + "</tbody></table>" +
+    '<div class="pd-totals">' +
+      '<div class="t-row"><span>Combined term total</span><span class="money">' + money(t.termTotal) + "</span></div>" +
+      '<div class="t-row"><span>Combined net cost</span><span class="money">' + money(t.net) + "</span></div>" +
+      '<div class="t-row"><span>Effective monthly cost</span><span class="money">' + fmtCents.format(t.effMo) + "</span></div>" +
+      '<div class="t-row big"><span>Total credit back</span><span class="money">' + money(t.credit) + "</span></div>" +
+    "</div>" +
+    compareHtml +
+    '<div class="pd-disclaimer">Estimate only, not a quote or contract. Credit is applied at the end of the contract term. Excludes add-ons, taxes, and other Pressable promotions. Annual pricing includes the standard two-months-free discount. Prepared with the Automattic for Agencies credit-back calculator.</div>';
+}
+
+document.getElementById("addLine").addEventListener("click", () => {
+  const last = lines[lines.length - 1];
+  lines.push({ planKey: last.planKey, billing: last.billing, years: last.years, qty: 1 });
+  rebuild();
+});
+document.getElementById("hostCost").addEventListener("input", update);
+document.getElementById("btnPdf").addEventListener("click", () => window.print());
+
+rebuild();
+</script>
+</body>
+</html>
