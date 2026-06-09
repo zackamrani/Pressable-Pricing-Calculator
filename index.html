@@ -595,7 +595,7 @@ function generatePdf() {
     margin: [0.5, 0.5, 0.55, 0.5],
     filename: "pressable-summer-migration-bonus-estimate-" + dateStr + ".pdf",
     image: { type: "jpeg", quality: 0.96 },
-    html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
+    html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff", width: document.getElementById("pdfDoc").offsetWidth },
     jsPDF: { unit: "in", format: "letter", orientation: "portrait" },
     pagebreak: { mode: ["avoid-all", "css", "legacy"] }
   }).from(document.getElementById("pdfDoc")).save()
