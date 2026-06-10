@@ -109,7 +109,7 @@
   .pdf-hint { text-align: center; color: var(--muted); font-size: 12px; margin-top: 8px; }
   .disclaimer { color: var(--muted); font-size: 12px; line-height: 1.55; margin-top: 16px; }
 
-  /* ---------- PDF document (rendered off-screen, rasterized by html2pdf) ---------- */
+  /* ---------- PDF document (print fallback only; primary PDF is drawn with jsPDF) ---------- */
   .pdf-stage { height: 0; overflow: hidden; }
   #pdfDoc {
     width: 7.25in;
@@ -221,7 +221,7 @@
 
 <div class="pdf-stage" aria-hidden="true"><div id="pdfDoc"></div></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 // ===== CALC CORE START =====
 const SIGNATURE = [
@@ -572,35 +572,301 @@ function renderPdfDoc(t) {
 
 function generatePdf() {
   const btn = document.getElementById("btnPdf");
-  if (typeof html2pdf === "undefined") { window.print(); return; }
-  const stage = document.querySelector(".pdf-stage");
-  const overlay = document.createElement("div");
-  overlay.style.cssText = "position:fixed;inset:0;background:var(--bg);z-index:2147483647;display:flex;align-items:center;justify-content:center;color:var(--text);font-size:18px;font-weight:600;";
-  overlay.textContent = "Preparing PDF\u2026";
-  const sx = window.scrollX, sy = window.scrollY;
-  const reset = () => {
-    btn.disabled = false;
-    btn.textContent = "Download PDF";
-    stage.style.cssText = "";
-    overlay.remove();
-    window.scrollTo(sx, sy);
-  };
+  const J = window.jspdf && window.jspdf.jsPDF;
+  if (!J) { window.print(); return; }
   btn.disabled = true;
   btn.textContent = "Preparing PDF\u2026";
-  document.body.appendChild(overlay);
-  stage.style.cssText = "position:fixed;left:0;top:0;height:auto;overflow:visible;z-index:2147483646;background:#fff;";
-  window.scrollTo(0, 0);
-  const dateStr = new Date().toISOString().slice(0, 10);
-  html2pdf().set({
-    margin: [0.5, 0.5, 0.55, 0.5],
-    filename: "pressable-summer-migration-bonus-estimate-" + dateStr + ".pdf",
-    image: { type: "jpeg", quality: 0.96 },
-    html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff", width: document.getElementById("pdfDoc").offsetWidth },
-    jsPDF: { unit: "in", format: "letter", orientation: "portrait" },
-    pagebreak: { mode: ["avoid-all", "css", "legacy"] }
-  }).from(document.getElementById("pdfDoc")).save()
-    .then(reset)
-    .catch(() => { reset(); window.print(); });
+  try {
+    const doc = buildQuotePdf(J);
+    doc.save("pressable-summer-migration-bonus-estimate-" + new Date().toISOString().slice(0, 10) + ".pdf");
+  } catch (e) {
+    window.print();
+  }
+  btn.disabled = false;
+  btn.textContent = "Download PDF";
+}
+
+function buildQuotePdf(J) {
+  const t = computeTotals(lines);
+  const c = compareData(t);
+  const doc = new J({ unit: "in", format: "letter" });
+
+  const NAVY = [4, 0, 36], BLUE = [28, 84, 227], ORANGE = [221, 58, 3], MINT = [3, 252, 194];
+  const GRAY = [85, 85, 112], SUBG = [119, 119, 144], HGRAY = [102, 102, 128];
+  const ML = 0.55, MR = 7.95, W = MR - ML;
+  let y = 0.55;
+
+  function setF(style, size, color) {
+    doc.setFont("helvetica", style);
+    doc.setFontSize(size);
+    doc.setTextColor(color[0], color[1], color[2]);
+  }
+  function ensure(h) {
+    if (y + h > 10.45) { doc.addPage(); y = 0.7; }
+  }
+  function sec(title) {
+    ensure(0.6);
+    setF("bold", 8, BLUE);
+    doc.text(title.toUpperCase(), ML, y);
+    y += 0.2;
+  }
+  function richWrap(bold, rest, x, maxW, fs, lh, boldColor, restColor) {
+    setF("bold", fs, boldColor);
+    doc.text(bold, x, y);
+    const bw = doc.getTextWidth(bold + " ");
+    setF("normal", fs, restColor);
+    const words = rest.split(" ");
+    let line = "", lx = x + bw, lw = maxW - bw;
+    for (const w of words) {
+      const test = line ? line + " " + w : w;
+      if (doc.getTextWidth(test) > lw && line) {
+        doc.text(line, lx, y);
+        y += lh;
+        line = w;
+        lx = x;
+        lw = maxW;
+      } else { line = test; }
+    }
+    if (line) { doc.text(line, lx, y); y += lh; }
+  }
+
+  // header: logo + meta
+  doc.addImage(PDF_LOGO, "PNG", ML, y - 0.18, 1.56, 0.3);
+  const qFor = (document.getElementById("quoteFor").value || "").trim();
+  const qBy = (document.getElementById("quoteBy").value || "").trim();
+  const dateStr = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  let metaY = y - 0.06;
+  if (qFor) {
+    setF("bold", 10.5, NAVY);
+    doc.text("Prepared for " + qFor, MR, metaY, { align: "right" });
+    metaY += 0.19;
+  }
+  setF("normal", 9, GRAY);
+  doc.text("Prepared " + dateStr + (qBy ? " by " + qBy : ""), MR, metaY, { align: "right" });
+  y += 0.42;
+
+  // hero band
+  const heroH = 1.12;
+  doc.setFillColor(NAVY[0], NAVY[1], NAVY[2]);
+  doc.roundedRect(ML, y, W, heroH, 0.09, 0.09, "F");
+  setF("bold", 8, [155, 155, 181]);
+  doc.text("SUMMER MIGRATION BONUS  \u00B7  YOUR ESTIMATED CASH BACK", ML + 0.25, y + 0.3);
+  setF("bold", 27, MINT);
+  doc.text(money(t.credit), ML + 0.25, y + 0.73);
+  const rateText = t.rates.length === 1 ? pct(t.rates[0]) + " of Total Plan Value" : "15 to 35% of Total Plan Value";
+  setF("normal", 9, [216, 216, 230]);
+  doc.text(rateText + ", paid by direct deposit by July 15, 2027.", ML + 0.25, y + 0.95);
+  const bw2 = 1.35, bh = 0.55, bx = MR - 0.25 - bw2, by2 = y + (heroH - bh) / 2;
+  doc.setFillColor(ORANGE[0], ORANGE[1], ORANGE[2]);
+  doc.roundedRect(bx, by2, bw2, bh, 0.07, 0.07, "F");
+  setF("bold", 6.5, [255, 255, 255]);
+  doc.text("OFFER ENDS", bx + bw2 / 2, by2 + 0.2, { align: "center" });
+  setF("bold", 10, [255, 255, 255]);
+  doc.text("June 30, 2026", bx + bw2 / 2, by2 + 0.4, { align: "center" });
+  y += heroH + 0.34;
+
+  // quote table
+  sec("Your quote");
+  const colBilling = 2.52, colTerm = 3.2, colQty = 4.05, colPV = 5.1, colCB = 6.07, colNC = 7.0;
+  setF("bold", 6.8, HGRAY);
+  doc.text("PLAN", ML, y);
+  doc.text("BILLING", colBilling, y);
+  doc.text("TERM", colTerm, y);
+  doc.text("QTY", colQty, y);
+  doc.text("PLAN VALUE", colPV, y, { align: "right" });
+  doc.text("CASH BACK", colCB, y, { align: "right" });
+  doc.text("NET COST", colNC, y, { align: "right" });
+  doc.text("EFFECTIVE/MO", MR, y, { align: "right" });
+  y += 0.07;
+  doc.setDrawColor(204, 204, 221);
+  doc.setLineWidth(0.012);
+  doc.line(ML, y, MR, y);
+  y += 0.19;
+
+  lines.forEach((line) => {
+    ensure(0.55);
+    const r = computeLine(line);
+    setF("bold", 9.5, NAVY);
+    doc.text(r.plan.name, ML, y);
+    setF("normal", 9.2, NAVY);
+    doc.text(line.billing === "annual" ? "Annual" : "Monthly", colBilling, y);
+    doc.text((line.years * 12) + " mo \u00B7 " + pct(r.rate), colTerm, y);
+    doc.text(String(line.qty), colQty, y);
+    doc.text(money(r.termTotal), colPV, y, { align: "right" });
+    setF("bold", 9.2, BLUE);
+    doc.text(money(r.credit), colCB, y, { align: "right" });
+    setF("normal", 9.2, NAVY);
+    doc.text(money(r.net), colNC, y, { align: "right" });
+    doc.text(fmtCents.format(r.effMo), MR, y, { align: "right" });
+    setF("normal", 7.3, SUBG);
+    doc.text(specsText(r.plan), ML, y + 0.15);
+    y += 0.25;
+    doc.setDrawColor(228, 228, 238);
+    doc.setLineWidth(0.008);
+    doc.line(ML, y, MR, y);
+    y += 0.22;
+  });
+
+  // totals
+  ensure(1.2);
+  const TX = 4.7;
+  function trow(k, v, big) {
+    if (big) {
+      doc.setDrawColor(BLUE[0], BLUE[1], BLUE[2]);
+      doc.setLineWidth(0.016);
+      doc.line(TX, y - 0.13, MR, y - 0.13);
+      y += 0.05;
+      setF("bold", 12.5, ORANGE);
+      doc.text(k, TX, y);
+      doc.text(v, MR, y, { align: "right" });
+      y += 0.26;
+    } else {
+      setF("normal", 9.5, NAVY);
+      doc.text(k, TX, y);
+      doc.text(v, MR, y, { align: "right" });
+      y += 0.21;
+    }
+  }
+  trow("Total Plan Value", money(t.termTotal));
+  trow("Net cost after cash back", money(t.net));
+  trow("Effective monthly cost", fmtCents.format(t.effMo));
+  trow("Total cash back", money(t.credit), true);
+  if (t.capped) {
+    setF("bold", 8, ORANGE);
+    doc.text("Capped at the $50,000 maximum per agency (uncapped: " + money(t.rawCredit) + ").", MR, y - 0.06, { align: "right" });
+    y += 0.14;
+  }
+  y += 0.08;
+
+  // current host comparison
+  if (c) {
+    const rowsN = 3 + (c.creditCovers ? 1 : 0);
+    const boxH = 0.34 + rowsN * 0.2 + 0.08;
+    ensure(boxH + 0.2);
+    doc.setDrawColor(224, 224, 236);
+    doc.setLineWidth(0.012);
+    doc.roundedRect(ML, y, W, boxH, 0.07, 0.07, "S");
+    let cy = y + 0.27;
+    setF("bold", 9.5, NAVY);
+    doc.text("Compared with your current host", ML + 0.18, cy);
+    cy += 0.21;
+    const yrLabel = c.years === 1 ? "1 year" : c.years + " years";
+    function crow(k, v, bold) {
+      setF(bold ? "bold" : "normal", 9, NAVY);
+      doc.text(k, ML + 0.18, cy);
+      if (v) doc.text(v, MR - 0.18, cy, { align: "right" });
+      cy += 0.2;
+    }
+    crow("Current host (" + money(c.hostMo) + "/mo \u00D7 " + (c.years * 12) + " mo)", money(c.hostTotal));
+    crow("Pressable net cost after cash back", money(t.net));
+    crow(c.diff >= 0 ? "Savings over " + yrLabel : "Extra cost over " + yrLabel, money(Math.abs(c.diff)), true);
+    if (c.creditCovers) crow("The cash back alone exceeds your full current-host bill for the term.", null);
+    y += boxH + 0.3;
+  }
+
+  // how it works
+  sec("How it works");
+  y += 0.04;
+  const steps = [
+    ["1", "Talk to your partner manager", "Not self-serve. They confirm eligibility and set everything up."],
+    ["2", "Pick plan and term", "Signature or Premium. 12, 24, or 36 months. Monthly or annual billing."],
+    ["3", "Sign at purchase", "A signed hosting agreement is required for payout eligibility."],
+    ["4", "Get paid", "Register with Tipalti by June 15, 2027. Cash back lands by July 15, 2027."]
+  ];
+  const gap = 0.12, bwd = (W - 3 * gap) / 4;
+  let maxH = 0;
+  const measured = steps.map((s) => {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    const tl = doc.splitTextToSize(s[1], bwd - 0.28);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.6);
+    const bl = doc.splitTextToSize(s[2], bwd - 0.28);
+    const h = 0.46 + tl.length * 0.14 + 0.02 + bl.length * 0.125 + 0.12;
+    if (h > maxH) maxH = h;
+    return { tl: tl, bl: bl };
+  });
+  ensure(maxH + 0.2);
+  steps.forEach((s, i) => {
+    const x = ML + i * (bwd + gap);
+    doc.setDrawColor(228, 228, 238);
+    doc.setLineWidth(0.01);
+    doc.roundedRect(x, y, bwd, maxH, 0.06, 0.06, "S");
+    doc.setFillColor(BLUE[0], BLUE[1], BLUE[2]);
+    doc.circle(x + 0.23, y + 0.23, 0.085, "F");
+    setF("bold", 8, [255, 255, 255]);
+    doc.text(s[0], x + 0.23, y + 0.26, { align: "center" });
+    let sy = y + 0.46;
+    setF("bold", 8.5, NAVY);
+    measured[i].tl.forEach((ln) => { doc.text(ln, x + 0.14, sy); sy += 0.14; });
+    sy += 0.02;
+    setF("normal", 7.6, GRAY);
+    measured[i].bl.forEach((ln) => { doc.text(ln, x + 0.14, sy); sy += 0.125; });
+  });
+  y += maxH + 0.26;
+
+  // contact band (auto-height)
+  ensure(0.9);
+  const contactBold = "Questions?";
+  const contactRest = "Contact your Automattic for Agencies partner manager, or email sales@pressable.com or partnerships@automattic.com.";
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8.8);
+  const cbw = doc.getTextWidth(contactBold + " ");
+  doc.setFont("helvetica", "normal");
+  let nLines = 1, lineT = "", lwT = (W - 0.36) - cbw;
+  for (const w of contactRest.split(" ")) {
+    const test = lineT ? lineT + " " + w : w;
+    if (doc.getTextWidth(test) > lwT && lineT) { nLines++; lineT = w; lwT = W - 0.36; }
+    else lineT = test;
+  }
+  const bandH = 0.16 + nLines * 0.16 + 0.1;
+  doc.setFillColor(238, 242, 255);
+  doc.roundedRect(ML, y, W, bandH, 0.06, 0.06, "F");
+  const saveY = y;
+  y += 0.26;
+  richWrap(contactBold, contactRest, ML + 0.18, W - 0.36, 8.8, 0.16, NAVY, NAVY);
+  y = saveY + bandH + 0.2;
+
+  // page 2: eligibility and key terms
+  doc.addPage();
+  y = 0.7;
+  sec("Eligibility and key terms");
+  y += 0.05;
+  const terms = [
+    ["Promotion window:", "May 21 (9:00 AM PT) through June 30, 2026."],
+    ["Net-new customers only:", "no active Pressable subscription in the prior 6 months."],
+    ["Eligible plans:", "Signature or Premium for agencies. Premium only for individuals."],
+    ["Not eligible:", "migrations from WordPress VIP or WordPress.com."],
+    ["Cash back rates:", "15% (12-month), 25% (24-month), or 35% (36-month) of Total Plan Value. Total Plan Value is the total paid to Pressable for the plan term, excluding taxes and overages."],
+    ["Maximum payout:", "$50,000 per agency or individual."],
+    ["Payout:", "by July 15, 2027 via direct deposit (Tipalti). Register and submit tax forms by June 15, 2027."],
+    ["Plan requirement:", "plan must remain active and paid through July 15, 2027. Cancellations or refunds before then forfeit the payout. Downgrades may trigger adjustment. Upgrades do not change the payout."],
+    ["Stacking:", "combines with standard Automattic for Agencies wholesale pricing and revenue share, but not other Pressable promotions."],
+    ["Annual billing:", "includes the standard two-months-free discount. The cash back rate applies to the lower amount you actually pay."]
+  ];
+  terms.forEach((tm) => {
+    doc.setFillColor(GRAY[0], GRAY[1], GRAY[2]);
+    doc.circle(ML + 0.03, y - 0.03, 0.015, "F");
+    richWrap(tm[0], tm[1], ML + 0.14, W - 0.14, 9, 0.17, NAVY, GRAY);
+    y += 0.06;
+  });
+  y += 0.12;
+  doc.setDrawColor(221, 221, 234);
+  doc.setLineWidth(0.008);
+  doc.line(ML, y, MR, y);
+  y += 0.18;
+  setF("normal", 7.5, SUBG);
+  const disc = doc.splitTextToSize("This document is an estimate, not a quote, offer, or contract. Pricing from pressable.com as of the prepared date. Full promotion terms and conditions apply and control in case of any conflict. Prepared with the Automattic for Agencies Summer Migration Bonus calculator.", W);
+  disc.forEach((ln) => { doc.text(ln, ML, y); y += 0.13; });
+
+  // page numbers
+  const n = doc.getNumberOfPages();
+  for (let i = 1; i <= n; i++) {
+    doc.setPage(i);
+    setF("normal", 7.5, SUBG);
+    doc.text("Page " + i + " of " + n, MR, 10.7, { align: "right" });
+  }
+  return doc;
 }
 
 document.getElementById("addLine").addEventListener("click", () => {
